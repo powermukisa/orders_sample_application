@@ -1,5 +1,6 @@
 package com.canals.orders.infrastructure.adapter.web;
 
+import com.canals.orders.application.service.GetOrderByIdUseCase;
 import com.canals.orders.domain.exception.CustomerNotFoundException;
 import com.canals.orders.domain.exception.InsufficientInventoryException;
 import com.canals.orders.domain.exception.PaymentFailedException;
@@ -33,6 +34,16 @@ public class GlobalExceptionHandler {
     
     @ExceptionHandler(ProductNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleProductNotFound(ProductNotFoundException ex) {
+        ErrorResponse error = new ErrorResponse(
+            HttpStatus.NOT_FOUND.value(),
+            ex.getMessage(),
+            LocalDateTime.now()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+    
+    @ExceptionHandler(GetOrderByIdUseCase.OrderNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleOrderNotFound(GetOrderByIdUseCase.OrderNotFoundException ex) {
         ErrorResponse error = new ErrorResponse(
             HttpStatus.NOT_FOUND.value(),
             ex.getMessage(),

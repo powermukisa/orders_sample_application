@@ -85,7 +85,7 @@ The application will start on `http://localhost:8080`
 
 ## API Documentation
 
-### Create Order
+### 1. Create Order
 
 **Endpoint:** `POST /orders`
 
@@ -137,6 +137,91 @@ The application will start on `http://localhost:8080`
 - `404 Not Found` - Customer or product not found
 - `409 Conflict` - Insufficient inventory
 
+### 2. Get All Orders
+
+**Endpoint:** `GET /orders`
+
+**Success Response (200 OK):**
+```json
+[
+  {
+    "orderId": 1,
+    "customerId": 1,
+    "shippingAddress": {
+      "street": "123 Main St",
+      "city": "San Francisco",
+      "state": "CA",
+      "zipCode": "94103",
+      "country": "USA"
+    },
+    "warehouseId": 1,
+    "items": [
+      {
+        "itemId": 1,
+        "productId": 1,
+        "quantity": 1,
+        "priceAtOrder": 999.99,
+        "subtotal": 999.99
+      },
+      {
+        "itemId": 2,
+        "productId": 2,
+        "quantity": 2,
+        "priceAtOrder": 29.99,
+        "subtotal": 59.98
+      }
+    ],
+    "totalAmount": 1059.97,
+    "status": "CONFIRMED",
+    "paymentTransactionId": "txn_a1b2c3d4",
+    "createdAt": "2025-11-17T10:30:00"
+  }
+]
+```
+
+### 3. Get Order by ID
+
+**Endpoint:** `GET /orders/{orderId}`
+
+**Success Response (200 OK):**
+```json
+{
+  "orderId": 1,
+  "customerId": 1,
+  "shippingAddress": {
+    "street": "123 Main St",
+    "city": "San Francisco",
+    "state": "CA",
+    "zipCode": "94103",
+    "country": "USA"
+  },
+  "warehouseId": 1,
+  "items": [
+    {
+      "itemId": 1,
+      "productId": 1,
+      "quantity": 1,
+      "priceAtOrder": 999.99,
+      "subtotal": 999.99
+    },
+    {
+      "itemId": 2,
+      "productId": 2,
+      "quantity": 2,
+      "priceAtOrder": 29.99,
+      "subtotal": 59.98
+    }
+  ],
+  "totalAmount": 1059.97,
+  "status": "CONFIRMED",
+  "paymentTransactionId": "txn_a1b2c3d4",
+  "createdAt": "2025-11-17T10:30:00"
+}
+```
+
+**Error Response:**
+- `404 Not Found` - Order not found
+
 ## Testing the API
 
 ### Using curl
@@ -165,6 +250,50 @@ curl -X POST http://localhost:8080/orders \
       "expiryYear": 2025
     }
   }'
+```
+
+### Expected Console Output
+
+When you run the above request, you'll see detailed logs in the console:
+
+```
+🛒 Starting order creation for customer ID: 1
+✓ Customer validated: John Doe (john.doe@example.com)
+✓ Products validated: 2 items
+✓ Shipping address geocoded: San Francisco, CA → (37.7749, -122.4194)
+📦 Searching for warehouse with sufficient inventory...
+✓ Selected warehouse: San Francisco Warehouse (1) - Distance: 0.00 km
+✓ Order total calculated: $1059.97
+============================================================
+PROCESSING PAYMENT
+Card: ****1111
+Amount: $1059.97
+Description: Order for customer 1
+============================================================
+✅ PAYMENT SUCCESSFUL!
+Transaction ID: txn_a1b2c3d4
+Amount charged: $1059.97
+Card: ****1111
+============================================================
+✓ Order confirmed with transaction ID: txn_a1b2c3d4
+✓ Order saved to database with ID: 1
+📦 Updating warehouse inventory...
+✓ Inventory updated successfully
+🎉 ORDER CREATED SUCCESSFULLY - Order ID: 1
+```
+
+This demonstrates the complete order flow including payment processing!
+
+### Testing GET Endpoints
+
+After creating an order, you can retrieve it:
+
+```bash
+# Get all orders
+curl http://localhost:8080/orders
+
+# Get a specific order
+curl http://localhost:8080/orders/1
 ```
 
 ### Test Data

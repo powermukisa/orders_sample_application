@@ -6,7 +6,9 @@ import com.canals.orders.infrastructure.adapter.persistence.entity.OrderEntity;
 import com.canals.orders.infrastructure.adapter.persistence.jpa.JpaOrderRepository;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Adapter implementing OrderRepository port
@@ -31,6 +33,13 @@ public class OrderRepositoryAdapter implements OrderRepository {
     public Optional<Order> findById(Long id) {
         return jpaRepository.findById(id)
             .map(OrderEntity::toDomain);
+    }
+    
+    @Override
+    public List<Order> findAll() {
+        return jpaRepository.findAll().stream()
+            .map(OrderEntity::toDomain)
+            .collect(Collectors.toList());
     }
 }
 

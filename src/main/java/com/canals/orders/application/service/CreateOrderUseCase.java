@@ -8,6 +8,8 @@ import com.canals.orders.domain.exception.InsufficientInventoryException;
 import com.canals.orders.domain.exception.ProductNotFoundException;
 import com.canals.orders.domain.model.*;
 import com.canals.orders.domain.port.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +24,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class CreateOrderUseCase {
+    
+    private static final Logger log = LoggerFactory.getLogger(CreateOrderUseCase.class);
     
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
@@ -50,9 +54,12 @@ public class CreateOrderUseCase {
     
     @Transactional
     public CreateOrderResponse execute(CreateOrderRequest request) {
+        log.info("🛒 Starting order creation for customer ID: {}", request.customerId());
+        
         // 1. Validate customer exists
         Customer customer = customerRepository.findById(request.customerId())
             .orElseThrow(() -> new CustomerNotFoundException(request.customerId()));
+        log.info("✓ Customer validated: {} ({})", customer.getName(), customer.getEmail());
         
         // 2. Validate products exist and get them
         List<Long> productIds = request.items().stream()
@@ -63,6 +70,7 @@ public class CreateOrderUseCase {
         if (products.size() != productIds.size()) {
             throw new ProductNotFoundException(null);
         }
+        log.info("✓ Products validated: {} items", products.size());
         
         Map<Long, Product> productMap = products.stream()
             .collect(Collectors.toMap(Product::getId, p -> p));
@@ -70,16 +78,25 @@ public class CreateOrderUseCase {
         // 3. Geocode shipping address
         Address shippingAddress = request.shippingAddress().toDomain();
         Coordinates destinationCoordinates = geocodingService.geocode(shippingAddress);
+        log.info("✓ Shipping address geocoded: {}, {} → ({}, {})", 
+            shippingAddress.city(), shippingAddress.state(),
+            destinationCoordinates.latitude(), destinationCoordinates.longitude());
         
         // 4. Find warehouses with sufficient inventory
+        log.info("📦 Searching for warehouse with sufficient inventory...");
         List<Warehouse> allWarehouses = warehouseRepository.findAll();
         Warehouse selectedWarehouse = findBestWarehouse(allWarehouses, request.items(), destinationCoordinates);
         
         if (selectedWarehouse == null) {
+            log.error("❌ No warehouse found with sufficient inventory");
             throw new InsufficientInventoryException(
                 "No warehouse has sufficient inventory for all requested items"
             );
         }
+        
+        double distance = selectedWarehouse.distanceTo(destinationCoordinates);
+        log.info("✓ Selected warehouse: {} ({}) - Distance: {:.2f} km", 
+            selectedWarehouse.getName(), selectedWarehouse.getId(), distance);
         
         // 5. Create order with items
         Order order = new Order();
@@ -105,6 +122,7 @@ public class CreateOrderUseCase {
         
         order.setItems(orderItems);
         order.setTotalAmount(totalAmount);
+        log.info("✓ Order total calculated: ${}", totalAmount.amount());
         
         // 6. Process payment
         PaymentInfo paymentInfo = request.paymentInfo().toDomain();
@@ -115,11 +133,14 @@ public class CreateOrderUseCase {
         );
         
         order.confirm(transactionId);
+        log.info("✓ Order confirmed with transaction ID: {}", transactionId);
         
         // 7. Save order
         Order savedOrder = orderRepository.save(order);
+        log.info("✓ Order saved to database with ID: {}", savedOrder.getId());
         
         // 8. Update inventory
+        log.info("📦 Updating warehouse inventory...");
         for (OrderItemDto itemDto : request.items()) {
             WarehouseInventory inventory = inventoryRepository
                 .findByWarehouseIdAndProductId(selectedWarehouse.getId(), itemDto.productId())
@@ -130,8 +151,11 @@ public class CreateOrderUseCase {
             inventory.reduceStock(itemDto.quantity());
             inventoryRepository.save(inventory);
         }
+        log.info("✓ Inventory updated successfully");
         
         // 9. Return response
+        log.info("🎉 ORDER CREATED SUCCESSFULLY - Order ID: {}", savedOrder.getId());
+        
         return new CreateOrderResponse(
             savedOrder.getId(),
             savedOrder.getStatus().name(),
