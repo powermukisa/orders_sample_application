@@ -425,4 +425,4 @@ For a full production system, consider adding:
 
 ## License
 
-This is a code assessment project for Canals.ai
+This is a code assessment project
